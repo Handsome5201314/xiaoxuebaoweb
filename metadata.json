@@ -1,0 +1,7 @@
+{
+  "name": "Little Snowball: Brave Companion",
+  "description": "A gamified, warm, and empathetic intelligent assistant for children with leukemia, based on the LeukemiaPal workflow.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
