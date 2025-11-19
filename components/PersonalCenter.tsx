@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, User, Save, X, Cpu, Network, Key, Database, Activity, CheckCircle2, AlertCircle, MessageSquare, GitBranch, BookOpen, Volume2, Smile, Music, Zap } from 'lucide-react';
-import { AppSettings, ModelProvider, VoiceTone } from '../types';
+import { Settings, User, Save, X, Cpu, Network, Key, Database, Activity, CheckCircle2, AlertCircle, MessageSquare, GitBranch, BookOpen, Volume2, Smile, Music, Zap, RefreshCw, Clock, Hash, Lightbulb } from 'lucide-react';
+import { AppSettings, ModelProvider, VoiceTone, UserProfile, Message, Sender } from '../types';
 import { testConnection } from '../services/geminiService';
 
 interface PersonalCenterProps {
@@ -8,9 +8,13 @@ interface PersonalCenterProps {
   onClose: () => void;
   settings: AppSettings;
   onSave: (newSettings: AppSettings) => void;
+  userProfile: UserProfile | null;
+  messageHistory: Message[];
+  onGenerateProfile: () => void;
+  isGeneratingProfile: boolean;
 }
 
-export const PersonalCenter: React.FC<PersonalCenterProps> = ({ isOpen, onClose, settings, onSave }) => {
+export const PersonalCenter: React.FC<PersonalCenterProps> = ({ isOpen, onClose, settings, onSave, userProfile, messageHistory, onGenerateProfile, isGeneratingProfile }) => {
   const [formData, setFormData] = useState<AppSettings>(settings);
   const [activeTab, setActiveTab] = useState<'profile' | 'model'>('model');
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
@@ -50,6 +54,11 @@ export const PersonalCenter: React.FC<PersonalCenterProps> = ({ isOpen, onClose,
     setTestMessage(result.message);
   };
 
+  // Format Timestamp
+  const formatTime = (timestamp: number) => {
+    return new Date(timestamp).toLocaleString('zh-CN', { hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
+
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
       <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -82,10 +91,10 @@ export const PersonalCenter: React.FC<PersonalCenterProps> = ({ isOpen, onClose,
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-5 scrollbar-hide">
+        <div className="flex-1 overflow-hidden flex flex-col">
           
           {activeTab === 'model' && (
-            <div className="space-y-6">
+            <div className="flex-1 overflow-y-auto p-5 scrollbar-hide space-y-6">
               {/* Provider Selector */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">选择大模型供应商</label>
@@ -321,16 +330,81 @@ export const PersonalCenter: React.FC<PersonalCenterProps> = ({ isOpen, onClose,
           )}
 
           {activeTab === 'profile' && (
-            <div className="flex flex-col items-center justify-center h-full space-y-4 text-center">
-               <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center text-blue-500 mb-2">
-                  <User size={40} />
+            <div className="flex flex-col h-full p-4 overflow-hidden bg-gray-50/50">
+               
+               {/* Persona Card */}
+               <div className="bg-white p-4 rounded-2xl shadow-sm border border-blue-100 mb-4 shrink-0 animate-fade-in">
+                  <div className="flex items-start justify-between mb-3">
+                     <div className="flex items-center space-x-3">
+                       <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-full flex items-center justify-center text-white shadow-sm">
+                          <User size={24} />
+                       </div>
+                       <div>
+                         <h3 className="font-bold text-gray-800">冒险者画像</h3>
+                         <p className="text-xs text-gray-400">Version 0.6.3</p>
+                       </div>
+                     </div>
+                     <button 
+                       onClick={onGenerateProfile}
+                       disabled={isGeneratingProfile || messageHistory.length < 3}
+                       className={`p-2 rounded-full transition-all ${isGeneratingProfile ? 'bg-gray-100 text-gray-400 animate-spin' : 'bg-blue-50 text-blue-500 hover:bg-blue-100'}`}
+                       title="更新画像"
+                     >
+                        <RefreshCw size={16} />
+                     </button>
+                  </div>
+
+                  {userProfile ? (
+                    <div className="space-y-3">
+                      <div className="text-sm text-gray-700 bg-gray-50 p-2 rounded-lg leading-relaxed">
+                        <span className="font-bold text-blue-500 mr-1">状态:</span>
+                        {userProfile.summary}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {userProfile.tags.map((tag, i) => (
+                          <span key={i} className="text-xs px-2 py-1 bg-blue-100 text-blue-600 rounded-md flex items-center">
+                             <Hash size={10} className="mr-1" /> {tag}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="text-xs text-orange-600 bg-orange-50 border border-orange-100 p-2 rounded-lg flex items-start">
+                         <Lightbulb size={14} className="mr-1.5 mt-0.5 shrink-0" />
+                         {userProfile.advice}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-gray-400 text-sm border-2 border-dashed border-gray-100 rounded-xl">
+                       <p>暂无分析数据</p>
+                       <p className="text-xs mt-1">多和小雪宝聊聊，再点击右上角更新哦！</p>
+                    </div>
+                  )}
                </div>
-               <h3 className="font-bold text-gray-700">冒险者</h3>
-               <p className="text-sm text-gray-500 px-4">
-                 在这里，你的每一次对话都是一次成长的冒险。保持勇敢！
-               </p>
-               <div className="text-xs text-gray-400 mt-8">
-                 Version 0.6.2
+
+               {/* History List */}
+               <div className="flex-1 overflow-hidden flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100">
+                  <div className="p-3 border-b border-gray-50 flex items-center text-gray-500">
+                     <Clock size={14} className="mr-2" />
+                     <h3 className="text-xs font-bold">历史记录 ({messageHistory.length})</h3>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-hide">
+                    {messageHistory.length === 0 ? (
+                      <div className="text-center py-8 text-gray-300 text-xs">暂无对话记录</div>
+                    ) : (
+                      messageHistory.slice().reverse().map((msg) => (
+                        <div key={msg.id} className={`flex flex-col ${msg.sender === Sender.User ? 'items-end' : 'items-start'}`}>
+                           <div className={`max-w-[90%] text-xs p-2 rounded-xl ${
+                             msg.sender === Sender.User ? 'bg-blue-50 text-blue-800 rounded-tr-none' : 
+                             msg.sender === Sender.System ? 'bg-yellow-50 text-yellow-700 text-center w-full' :
+                             'bg-gray-50 text-gray-700 rounded-tl-none'
+                           }`}>
+                              {msg.text}
+                              {msg.imageUrl && <span className="block text-[10px] mt-1 opacity-50">[图片附件]</span>}
+                           </div>
+                           <span className="text-[10px] text-gray-300 mt-1 px-1">{formatTime(msg.timestamp)}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
                </div>
             </div>
           )}

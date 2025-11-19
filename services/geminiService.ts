@@ -319,40 +319,35 @@ export const endLiveCall = () => {
 // Generate User Profile (Persona) from History
 export const generateUserProfile = async (history: {text: string, sender: string}[], providerSettings: AppSettings): Promise<UserProfile | null> => {
   try {
+    if (history.length < 3) return null; // Not enough data
+
     // Construct prompt
     const recentChats = history.slice(-20).map(msg => `${msg.sender}: ${msg.text}`).join('\n');
     const prompt = `
       基于以下对话历史，生成一个简单的用户画像 JSON。
       包含: 
-      - summary (一句话总结用户当前状态/情绪)
+      - summary (一句话总结用户当前状态/情绪，30字以内)
       - tags (3-5个关键词标签，如"焦虑", "喜爱画画", "发烧中")
-      - advice (一条给家属或患儿的简短建议)
+      - advice (一条给家属或患儿的简短建议，50字以内)
       
       对话历史:
       ${recentChats}
 
-      请仅返回 JSON 格式: { "summary": "...", "tags": ["..."], "advice": "..." }
+      请严格仅返回 JSON 格式，不要包含 markdown 格式化 (如 \`\`\`json )。
+      格式: { "summary": "...", "tags": ["..."], "advice": "..." }
     `;
 
-    // We can reuse the existing sendMessage function but with a specific instruction
-    // For simplicity, we create a temporary instance or use the existing logic
-    // Here we default to using the sendMessageToSnowball logic but forcing it to be a "background" system task if possible.
-    // To avoid messing up the main chat session context, ideally we'd use a separate model instance, 
-    // but for MVP we will just use the configured provider to "chat" this request.
-    // Note: For Dify Workflow, this might be tricky if the workflow is rigid. 
-    
-    // Let's try to use the configured provider directly.
-    
+    let resultText = "";
+
     // If Gemini
     if (providerSettings.provider === 'gemini' && providerSettings.geminiKey) {
        const genAI = new GoogleGenAI({ apiKey: providerSettings.geminiKey });
        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash',  generationConfig: { responseMimeType: "application/json" } });
        const result = await model.generateContent(prompt);
-       return JSON.parse(result.response.text());
+       resultText = result.response.text();
     }
-
     // If OpenAI
-    if (providerSettings.provider === 'openai' && providerSettings.openaiKey) {
+    else if (providerSettings.provider === 'openai' && providerSettings.openaiKey) {
        const response = await fetch(`${providerSettings.openaiBaseUrl.replace(/\/$/, '')}/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${providerSettings.openaiKey}` },
@@ -363,11 +358,16 @@ export const generateUserProfile = async (history: {text: string, sender: string
         })
       });
       const data = await response.json();
-      return JSON.parse(data.choices[0].message.content);
+      resultText = data.choices[0].message.content;
+    } else {
+        // Dify / Other not supported for this specific feature yet without a specific workflow
+        return null;
     }
 
-    // Dify (Skip for now as it requires specific workflow setup)
-    return null;
+    // Clean up markdown if present (Gemini sometimes adds it even with mimeType set)
+    resultText = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    return JSON.parse(resultText);
 
   } catch (e) {
     console.error("Failed to generate profile", e);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { initializeAIService, sendMessageToSnowball, startLiveCall, endLiveCall, DEFAULT_SYSTEM_INSTRUCTION } from './services/geminiService';
-import { Sender, Message, UserStats, Achievement, TutorialStep, RandomEvent, AppSettings, CallState } from './types';
+import { initializeAIService, sendMessageToSnowball, startLiveCall, endLiveCall, generateUserProfile, DEFAULT_SYSTEM_INSTRUCTION } from './services/geminiService';
+import { Sender, Message, UserStats, Achievement, TutorialStep, RandomEvent, AppSettings, CallState, UserProfile } from './types';
 import { SnowballAvatar } from './components/SnowballAvatar';
 import { StatsBar } from './components/StatsBar';
 import { AchievementModal } from './components/AchievementModal';
@@ -77,6 +77,13 @@ export default function App() {
     return saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS;
   });
 
+  // User Profile State
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
+    const saved = localStorage.getItem('snowball_user_profile');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [isGeneratingProfile, setIsGeneratingProfile] = useState(false);
+
   // Modal States
   const [showAchievements, setShowAchievements] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -123,6 +130,38 @@ export default function App() {
       timestamp: Date.now(),
       isEvent: false
     }]);
+  };
+
+  // Handle Profile Generation
+  const handleGenerateProfile = async () => {
+    setIsGeneratingProfile(true);
+    try {
+      // Use real chat messages only for analysis
+      const chatHistory = messages.filter(m => m.sender === Sender.User || m.sender === Sender.Bot).map(m => ({
+          text: m.text,
+          sender: m.sender
+      }));
+
+      const profile = await generateUserProfile(chatHistory, appSettings);
+      if (profile) {
+          setUserProfile(profile);
+          localStorage.setItem('snowball_user_profile', JSON.stringify(profile));
+          setMessages(prev => [...prev, {
+            id: `sys-${Date.now()}`,
+            text: '📋 你的个人画像已更新，快去个人中心看看吧！',
+            sender: Sender.System,
+            timestamp: Date.now(),
+            isEvent: false
+          }]);
+      } else {
+         // Silent fail or toast? Let's rely on the personal center showing old data or none
+         console.warn("Profile generation returned null");
+      }
+    } catch (e) {
+      console.error("Profile generation error", e);
+    } finally {
+      setIsGeneratingProfile(false);
+    }
   };
 
   // Auto-scroll
@@ -356,6 +395,10 @@ export default function App() {
         onClose={() => setShowSettings(false)}
         settings={appSettings}
         onSave={handleSaveSettings}
+        userProfile={userProfile}
+        messageHistory={messages}
+        onGenerateProfile={handleGenerateProfile}
+        isGeneratingProfile={isGeneratingProfile}
       />
       
       {/* Header Area */}
@@ -414,7 +457,7 @@ export default function App() {
               <div
                 className={`max-w-[85%] p-4 rounded-2xl relative shadow-sm text-sm leading-relaxed transition-all duration-300 ${
                   msg.sender === Sender.User
-                    ? 'bg-blue-500 text-white rounded-br-none'
+                    ? 'bg-blue-50 text-white rounded-br-none'
                     : 'bg-white text-gray-700 border border-gray-100 rounded-bl-none'
                 }`}
               >
