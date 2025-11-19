@@ -5,7 +5,7 @@ import { SnowballAvatar } from './SnowballAvatar';
 
 interface CallOverlayProps {
   status: CallState;
-  onEndCall: () => void;
+  onEndCall: (duration: number) => void;
 }
 
 export const CallOverlay: React.FC<CallOverlayProps> = ({ status, onEndCall }) => {
@@ -77,7 +77,7 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({ status, onEndCall }) =
          </button>
 
          <button 
-           onClick={onEndCall}
+           onClick={() => onEndCall(duration)}
            className="p-6 bg-red-500 rounded-full text-white shadow-lg hover:bg-red-600 transform hover:scale-105 transition-all active:scale-95"
          >
             <PhoneOff size={40} fill="currentColor" />

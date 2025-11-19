@@ -342,9 +342,14 @@ export const generateUserProfile = async (history: {text: string, sender: string
     // If Gemini
     if (providerSettings.provider === 'gemini' && providerSettings.geminiKey) {
        const genAI = new GoogleGenAI({ apiKey: providerSettings.geminiKey });
-       const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash',  generationConfig: { responseMimeType: "application/json" } });
-       const result = await model.generateContent(prompt);
-       resultText = result.response.text();
+       const response = await genAI.models.generateContent({
+         model: 'gemini-2.5-flash',
+         contents: prompt,
+         config: {
+           responseMimeType: 'application/json'
+         }
+       });
+       resultText = response.text || "";
     }
     // If OpenAI
     else if (providerSettings.provider === 'openai' && providerSettings.openaiKey) {

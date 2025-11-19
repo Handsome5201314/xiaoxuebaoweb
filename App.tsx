@@ -252,9 +252,21 @@ export default function App() {
     }
   };
 
-  const handleEndCall = () => {
+  const handleEndCall = (duration: number) => {
     endLiveCall();
     setCallStatus(CallState.Idle);
+    
+    const mins = Math.floor(duration / 60);
+    const secs = duration % 60;
+    const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+    setMessages(prev => [...prev, {
+      id: `call-${Date.now()}`,
+      text: `📞 通话结束，时长 ${timeStr}`,
+      sender: Sender.System,
+      timestamp: Date.now(),
+      isEvent: false
+    }]);
   };
 
   const handleSend = async () => {
