@@ -1,23 +1,43 @@
 {
-  "name": "little-snowball:-brave-companion",
+  "name": "little-snowball",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.6.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "mcp:start": "node --loader ts-node/esm mcp/server.ts",
+    "mcp:build": "tsc mcp/server.ts --outDir dist-mcp"
   },
   "dependencies": {
-    "@google/genai": "^1.30.0",
-    "react-dom": "^19.2.0",
-    "react": "^19.2.0",
-    "lucide-react": "^0.554.0"
+    "@google/genai": "^0.1.3",
+    "@modelcontextprotocol/sdk": "^1.0.1",
+    "@tarojs/components": "3.6.31",
+    "@tarojs/plugin-framework-react": "3.6.31",
+    "@tarojs/react": "3.6.31",
+    "@tarojs/runtime": "3.6.31",
+    "@tarojs/taro": "3.6.31",
+    "dotenv": "^16.4.5",
+    "lucide-react": "^0.344.0",
+    "node-fetch": "^3.3.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "ws": "^8.16.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "@types/node": "^20.11.24",
+    "@types/node-fetch": "^2.6.11",
+    "@types/react": "^18.2.61",
+    "@types/react-dom": "^18.2.19",
+    "@types/ws": "^8.5.10",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.18",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.4"
   }
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, User, Save, X, Cpu, Network, Key, Database, Activity, CheckCircle2, AlertCircle, MessageSquare, GitBranch, BookOpen, Volume2, Smile, Music, Zap, RefreshCw, Clock, Hash, Lightbulb, Server } from 'lucide-react';
+import { Settings, User, Save, X, Cpu, Network, Key, Database, Activity, CheckCircle2, AlertCircle, MessageSquare, GitBranch, BookOpen, Volume2, Smile, Music, Zap, RefreshCw, Clock, Hash, Lightbulb, Server, Zap as ZapIcon, Copy } from 'lucide-react';
 import { AppSettings, ModelProvider, VoiceTone, UserProfile, Message, Sender } from '../types';
 import { testConnection } from '../services/geminiService';
 
@@ -16,9 +16,10 @@ interface PersonalCenterProps {
 
 export const PersonalCenter: React.FC<PersonalCenterProps> = ({ isOpen, onClose, settings, onSave, userProfile, messageHistory, onGenerateProfile, isGeneratingProfile }) => {
   const [formData, setFormData] = useState<AppSettings>(settings);
-  const [activeTab, setActiveTab] = useState<'profile' | 'model'>('model');
+  const [activeTab, setActiveTab] = useState<'profile' | 'model' | 'mcp'>('model');
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [testMessage, setTestMessage] = useState('');
+  const [copyFeedback, setCopyFeedback] = useState(false);
 
   useEffect(() => {
     setFormData(settings);
@@ -54,6 +55,13 @@ export const PersonalCenter: React.FC<PersonalCenterProps> = ({ isOpen, onClose,
     setTestMessage(result.message);
   };
 
+  const handleCopyCommand = () => {
+    const command = `cross-env XIAOZHI_MCP_URL="${formData.xiaoZhiMcpUrl || ''}" npm run mcp:start`;
+    navigator.clipboard.writeText(command);
+    setCopyFeedback(true);
+    setTimeout(() => setCopyFeedback(false), 2000);
+  };
+
   // Format Timestamp
   const formatTime = (timestamp: number) => {
     return new Date(timestamp).toLocaleString('zh-CN', { hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -61,7 +69,7 @@ export const PersonalCenter: React.FC<PersonalCenterProps> = ({ isOpen, onClose,
 
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col max-h-[90%] h-auto">
         
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-500 to-cyan-500 p-4 flex justify-between items-center text-white shrink-0">
@@ -81,6 +89,12 @@ export const PersonalCenter: React.FC<PersonalCenterProps> = ({ isOpen, onClose,
             className={`flex-1 py-3 text-sm font-bold transition-colors ${activeTab === 'model' ? 'text-blue-500 border-b-2 border-blue-500' : 'text-gray-400 hover:text-gray-600'}`}
           >
             模型接入
+          </button>
+          <button 
+            onClick={() => setActiveTab('mcp')}
+            className={`flex-1 py-3 text-sm font-bold transition-colors ${activeTab === 'mcp' ? 'text-blue-500 border-b-2 border-blue-500' : 'text-gray-400 hover:text-gray-600'}`}
+          >
+            智能硬件
           </button>
           <button 
             onClick={() => setActiveTab('profile')}
@@ -323,7 +337,7 @@ export const PersonalCenter: React.FC<PersonalCenterProps> = ({ isOpen, onClose,
                           onClick={() => handleChange('voiceTone', 'cute')} 
                           className={`p-2 rounded-lg border text-xs flex items-center justify-center space-x-1 ${formData.voiceTone === 'cute' ? 'bg-yellow-50 border-yellow-400 text-yellow-700' : 'border-gray-100 text-gray-500 hover:bg-gray-50'}`}
                         >
-                          <Zap size={14} /> <span>可爱 (皮卡丘)</span>
+                          <ZapIcon size={14} /> <span>可爱 (皮卡丘)</span>
                         </button>
                         <button 
                           onClick={() => handleChange('voiceTone', 'gentle')} 
@@ -378,6 +392,49 @@ export const PersonalCenter: React.FC<PersonalCenterProps> = ({ isOpen, onClose,
               </div>
 
             </div>
+          )}
+
+          {/* MCP Settings Tab */}
+          {activeTab === 'mcp' && (
+             <div className="flex-1 overflow-y-auto p-5 scrollbar-hide space-y-6">
+                <div className="space-y-4 animate-fade-in">
+                   <div className="bg-indigo-50 p-3 rounded-lg text-xs text-indigo-600 mb-2">
+                      连接小智或其他支持 MCP 协议的智能硬件。小雪宝将作为知识库供硬件调用。
+                   </div>
+
+                   <div className="space-y-2">
+                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center">
+                        小智 MCP WebSocket 链接
+                     </label>
+                     <textarea
+                       value={formData.xiaoZhiMcpUrl}
+                       onChange={(e) => handleChange('xiaoZhiMcpUrl', e.target.value)}
+                       className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none h-24 leading-relaxed resize-none font-mono text-gray-600 break-all"
+                       placeholder="wss://api.xiaozhi.me/mcp/?token=..."
+                     />
+                   </div>
+
+                   <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2">
+                      <h4 className="text-xs font-bold text-gray-700">启动命令</h4>
+                      <p className="text-[10px] text-gray-500">
+                        由于浏览器安全限制，无法直接连接。请复制下方命令在终端运行，即可启动连接服务。
+                      </p>
+                      
+                      <div className="relative">
+                        <div className="bg-gray-800 text-gray-300 text-[10px] font-mono p-3 rounded-lg break-all pr-10">
+                           cross-env XIAOZHI_MCP_URL="{formData.xiaoZhiMcpUrl ? '...' : ''}" npm run mcp:start
+                        </div>
+                        <button 
+                          onClick={handleCopyCommand}
+                          className="absolute top-2 right-2 p-1.5 bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors"
+                          title="复制完整命令"
+                        >
+                           {copyFeedback ? <CheckCircle2 size={12} /> : <Copy size={12} />}
+                        </button>
+                      </div>
+                   </div>
+                </div>
+             </div>
           )}
 
           {activeTab === 'profile' && (

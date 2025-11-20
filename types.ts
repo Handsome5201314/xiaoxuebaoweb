@@ -1,3 +1,5 @@
+import React from 'react';
+
 export enum Sender {
   User = 'user',
   Bot = 'bot',
@@ -95,4 +97,7 @@ export interface AppSettings {
   difyKey: string;
   difyAppType: 'chat' | 'workflow'; // 'chat' for Chatflow/Agent, 'workflow' for raw Workflow
   difyConversationId?: string; // To maintain conversation history in Dify
+
+  // Smart Hardware (MCP)
+  xiaoZhiMcpUrl?: string; // WebSocket URL for XiaoZhi
 }

@@ -64,7 +64,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   siliconFlowModel: 'deepseek-ai/DeepSeek-V3',
   difyBaseUrl: 'https://api.dify.ai/v1',
   difyKey: '',
-  difyAppType: 'chat'
+  difyAppType: 'chat',
+  xiaoZhiMcpUrl: ''
 };
 
 export default function App() {
@@ -400,10 +401,15 @@ export default function App() {
     window.speechSynthesis.speak(utterance);
   };
 
+  // Responsive Container Classes
+  // Mobile: Full screen (h-[100dvh]), full width
+  // Tablet/Desktop (md): Floating card (max-w-[540px]), centered vertically/horizontally, rounded, border
+  const containerClasses = "flex flex-col h-[100dvh] w-full md:max-w-[540px] md:h-[92vh] md:my-[4vh] md:mx-auto md:rounded-[40px] md:border-[10px] md:border-white md:shadow-2xl bg-white overflow-hidden relative transition-all duration-300 ease-in-out";
+
   return (
-    <div className="flex flex-col h-screen max-w-md mx-auto bg-white shadow-2xl overflow-hidden relative">
+    <div className={containerClasses}>
       
-      {/* Overlays */}
+      {/* Overlays - Absolute positioning ensures they stay inside the "Phone" container */}
       {callStatus !== CallState.Idle && (
         <CallOverlay status={callStatus} onEndCall={handleEndCall} />
       )}
@@ -447,32 +453,32 @@ export default function App() {
       />
       
       {/* Header Area */}
-      <div id="avatar-area" className="bg-gradient-to-b from-[#FFEAD5] to-blue-50 pt-6 pb-2 rounded-b-[3rem] shadow-sm z-10 relative">
+      <div id="avatar-area" className="bg-gradient-to-b from-[#FFEAD5] to-blue-50 pt-6 pb-2 rounded-b-[3rem] shadow-sm z-10 relative shrink-0">
         <div className="absolute top-2 right-4 flex space-x-2">
              <button 
                id="phone-btn"
                onClick={handleStartCall}
-               className="bg-green-400 text-white p-1.5 rounded-full hover:bg-green-500 transition-colors shadow-sm animate-bounce-slow"
+               className="bg-green-400 text-white p-1.5 md:p-2 rounded-full hover:bg-green-500 transition-colors shadow-sm animate-bounce-slow"
              >
-                <Phone size={18} fill="currentColor" />
+                <Phone size={18} className="md:w-5 md:h-5" fill="currentColor" />
              </button>
              <button 
                onClick={() => setShowAchievements(true)} 
-               className="bg-yellow-400 text-white p-1.5 rounded-full hover:bg-yellow-500 transition-colors shadow-sm"
+               className="bg-yellow-400 text-white p-1.5 md:p-2 rounded-full hover:bg-yellow-500 transition-colors shadow-sm"
              >
-                <Trophy size={18} />
+                <Trophy size={18} className="md:w-5 md:h-5" />
              </button>
-             <button onClick={() => setShowSettings(true)} className="bg-blue-400 text-white p-1.5 rounded-full hover:bg-blue-500 transition-colors shadow-sm">
-                <SettingsIcon size={18} />
+             <button onClick={() => setShowSettings(true)} className="bg-blue-400 text-white p-1.5 md:p-2 rounded-full hover:bg-blue-500 transition-colors shadow-sm">
+                <SettingsIcon size={18} className="md:w-5 md:h-5" />
              </button>
              <button onClick={() => setTutorialIndex(0)} className="text-gray-400 hover:text-blue-500 p-1">
-                <Info size={20} />
+                <Info size={20} className="md:w-6 md:h-6" />
              </button>
         </div>
         <SnowballAvatar isTalking={isLoading} emotion={isLoading ? 'concerned' : 'happy'} />
         <div className="text-center">
-          <h1 className="text-xl font-bold text-gray-700 font-['ZCOOL_KuaiLe'] tracking-wide">小雪宝 (LeukemiaPal)</h1>
-          <p className="text-xs text-gray-500 font-['Nunito']">你身边最贴心的医疗小助手</p>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-700 font-['ZCOOL_KuaiLe'] tracking-wide">小雪宝 (LeukemiaPal)</h1>
+          <p className="text-xs md:text-sm text-gray-500 font-['Nunito']">你身边最贴心的医疗小助手</p>
         </div>
         <div className="mt-4" id="stats-area">
            <StatsBar stats={stats} />
@@ -486,7 +492,7 @@ export default function App() {
           if (msg.sender === Sender.System) {
              return (
                <div key={msg.id} className="flex justify-center animate-fade-in">
-                 <div className={`text-xs px-4 py-2 rounded-full flex items-center space-x-2 shadow-sm border ${msg.isEvent ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-yellow-100 text-yellow-700 border-yellow-200'}`}>
+                 <div className={`text-xs md:text-sm px-4 py-2 rounded-full flex items-center space-x-2 shadow-sm border ${msg.isEvent ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-yellow-100 text-yellow-700 border-yellow-200'}`}>
                     {msg.isEvent ? <AlertCircle size={14} /> : <Trophy size={14} />}
                     <span>{msg.text}</span>
                  </div>
@@ -500,7 +506,7 @@ export default function App() {
               className={`flex ${msg.sender === Sender.User ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[85%] p-4 rounded-2xl relative shadow-sm text-sm leading-relaxed transition-all duration-300 ${
+                className={`max-w-[85%] p-4 rounded-2xl relative shadow-sm text-sm md:text-base leading-relaxed transition-all duration-300 ${
                   msg.sender === Sender.User
                     ? 'bg-blue-50 text-white rounded-br-none'
                     : 'bg-white text-gray-700 border border-gray-100 rounded-bl-none'
@@ -546,23 +552,23 @@ export default function App() {
       </div>
 
       {/* Input Area */}
-      <div id="input-area" className="p-4 bg-white border-t border-blue-50 relative z-20">
+      <div id="input-area" className="p-4 bg-white border-t border-blue-50 relative z-20 shrink-0">
         {/* Quick Actions */}
         <div id="quick-actions" className="flex space-x-2 mb-3 overflow-x-auto pb-1 scrollbar-hide">
-            <button onClick={() => {setInput('什么是白血病？'); handleSend();}} className="whitespace-nowrap px-3 py-1 bg-orange-50 text-orange-600 rounded-full text-xs border border-orange-100 hover:bg-orange-100 transition-colors">
+            <button onClick={() => {setInput('什么是白血病？'); handleSend();}} className="whitespace-nowrap px-3 py-1 bg-orange-50 text-orange-600 rounded-full text-xs md:text-sm border border-orange-100 hover:bg-orange-100 transition-colors">
                🦠 什么是白血病？
             </button>
-            <button onClick={() => {setInput('我今天要吃什么？'); handleSend();}} className="whitespace-nowrap px-3 py-1 bg-green-50 text-green-600 rounded-full text-xs border border-green-100 hover:bg-green-100 transition-colors">
+            <button onClick={() => {setInput('我今天要吃什么？'); handleSend();}} className="whitespace-nowrap px-3 py-1 bg-green-50 text-green-600 rounded-full text-xs md:text-sm border border-green-100 hover:bg-green-100 transition-colors">
                🥦 营养建议
             </button>
-            <button onClick={() => {setInput('给我讲个故事吧'); handleSend();}} className="whitespace-nowrap px-3 py-1 bg-purple-50 text-purple-600 rounded-full text-xs border border-purple-100 hover:bg-purple-100 transition-colors">
+            <button onClick={() => {setInput('给我讲个故事吧'); handleSend();}} className="whitespace-nowrap px-3 py-1 bg-purple-50 text-purple-600 rounded-full text-xs md:text-sm border border-purple-100 hover:bg-purple-100 transition-colors">
                📖 讲个故事
             </button>
         </div>
 
         <div className="flex items-center space-x-2 bg-gray-50 p-2 rounded-full border border-gray-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
           <button className="p-2 text-gray-400 hover:text-blue-500 rounded-full hover:bg-white transition-colors">
-             <Mic size={20} />
+             <Mic size={20} className="md:w-6 md:h-6" />
           </button>
           <input
             type="text"
@@ -570,11 +576,11 @@ export default function App() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyPress}
             placeholder="和小雪宝说点什么..."
-            className="flex-1 bg-transparent border-none outline-none text-sm text-gray-700 placeholder-gray-400"
+            className="flex-1 bg-transparent border-none outline-none text-sm md:text-base text-gray-700 placeholder-gray-400"
             disabled={isLoading}
           />
           <button className="p-2 text-gray-400 hover:text-purple-500 rounded-full hover:bg-white transition-colors">
-             <ImageIcon size={20} />
+             <ImageIcon size={20} className="md:w-6 md:h-6" />
           </button>
           <button 
             onClick={handleSend}
@@ -585,7 +591,7 @@ export default function App() {
                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
             }`}
           >
-            <Send size={20} />
+            <Send size={20} className="md:w-6 md:h-6" />
           </button>
         </div>
       </div>

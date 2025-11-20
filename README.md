@@ -3,7 +3,7 @@
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![React](https://img.shields.io/badge/React-19.0-61DAFB.svg)
 ![Gemini](https://img.shields.io/badge/AI-Gemini%202.5-8E75B2.svg)
-![Taro](https://img.shields.io/badge/Framework-Taro-0000C2.svg)
+![MCP](https://img.shields.io/badge/Protocol-MCP-green.svg)
 
 [English](#english) | [中文](#chinese)
 
@@ -21,61 +21,69 @@
 
 ## ✨ 核心功能 (Features)
 
-### 1. 🤖 情感化 AI 陪伴
+### 1. 🔗 MCP 协议支持 (Model Context Protocol) **(New!)**
+- **小智互通**：支持作为 MCP Server 运行，允许 **小智** 等硬件或 AI 代理调用小雪宝的医疗知识库。
+- **图片传输**：当 Dify 工作流生成图片（如器官示意图、文生图）时，MCP 服务会自动将图片转码传输给小智，实现跨端图片查看。
+
+### 2. 🤖 情感化 AI 陪伴
 - **动态形象**：小雪宝会根据对话内容表现出开心、关心、思考等不同表情。
 - **角色扮演**：内置精心设计的 System Prompt，始终以温和、坚韧、鼓励的语气与孩子交流。
-- **记忆画像**：自动分析对话历史，生成用户画像（Summary & Tags），记住孩子的喜好和状态。
 
-### 2. 📞 实时语音通话 (Gemini Live)
+### 3. 📞 实时语音通话 (Gemini Live)
 - **沉浸式通话**：利用 Google Gemini Live API，实现低延迟的实时语音对话。
-- **可打断**：模拟真实人类交流，支持随时打断 AI 发言。
-- **多音色支持**：支持切换“皮卡丘/可爱”、“稳重”、“轻柔”等多种音色。
 
-### 3. 🎮 游戏化激励系统
-- **成就系统**：通过互动（如第一次提问、询问饮食建议）解锁成就徽章。
-- **勇气星**：每次对话都能收集“勇气星”，提升健康等级。
-- **随机事件**：模拟突发状况（如发烧、想家），引导孩子学习应对方法。
+### 4. 🎮 游戏化激励系统
+- **成就系统**：通过互动解锁成就徽章，收集“勇气星”。
 
-### 4. 🔌 强大的模型接入能力
-- **多模型支持**：
-  - **Google Gemini**: 官方支持，包含 Live 语音功能。
-  - **OpenAI 兼容接口**: 支持 DeepSeek, SiliconFlow, Moonshot 等。
-  - **Dify**: 支持接入 Dify 的 Chatflow 和 Workflow 应用。
-- **可视化配置**：在“个人中心”轻松配置 API Key 和 Base URL。
+### 5. 🔌 强大的模型接入能力
+- 支持 **Google Gemini**, **SiliconFlow**, **OpenAI**, **Dify**。
 
-### 5. 📱 多端支持架构
-- 基于 **Taro** 框架构建，代码结构支持编译为 **微信小程序** 和 H5 网页。
+## 🚀 快速开始 (Web App)
 
-## 🛠️ 技术栈 (Tech Stack)
+1. **进入项目目录**:
+   ```bash
+   cd little-snowball
+   ```
 
-- **前端框架**: React 19, Taro
-- **样式**: Tailwind CSS
-- **AI SDK**: `@google/genai` (Gemini 2.5 Flash / Pro)
-- **图标库**: Lucide React
-- **语音技术**: Web Audio API (PCM Encoding/Decoding), SpeechSynthesis API
+2. **安装依赖**:
+   ```bash
+   npm install
+   ```
 
-## 🚀 快速开始 (Getting Started)
+3. **启动**:
+   ```bash
+   npm run dev
+   ```
 
-### 1. 克隆项目
-```bash
-git clone https://github.com/yourusername/little-snowball.git
-cd little-snowball
-```
+## 🔌 MCP Server 运行指南 (For 小智/Claude)
 
-### 2. 安装依赖
-```bash
-npm install
-```
+如果您想让其他 AI 客户端（如小智）连接小雪宝：
 
-### 3. 启动开发服务器
-```bash
-npm run dev
-```
+1. **配置环境变量**:
+   在项目根目录创建 `.env` 文件：
+   ```env
+   DIFY_API_KEY=你的dify_api_key
+   DIFY_BASE_URL=https://api.dify.ai/v1
+   DIFY_APP_TYPE=chat  # 或 workflow
+   ```
 
-### 4. 配置模型
-启动后点击右上角的 **设置 (⚙️)** 图标，进入“模型接入”页面：
-- 选择 **Gemini** 并输入 API Key (推荐用于体验完整功能)。
-- 或配置 OpenAI / Dify 信息。
+2. **启动 MCP Server**:
+   ```bash
+   npm run mcp:start
+   ```
+   该命令会启动一个基于 Stdio 的 MCP 服务。
+
+3. **在 Claude Desktop / 小智 中配置**:
+   ```json
+   {
+     "mcpServers": {
+       "snowball": {
+         "command": "node",
+         "args": ["path/to/little-snowball/mcp/server.ts"]
+       }
+     }
+   }
+   ```
 
 ---
 
@@ -85,41 +93,36 @@ npm run dev
 
 **Little Snowball (LeukemiaPal)** is a **gamified intelligent medical assistant** designed specifically for children with leukemia and their families.
 
-More than just a chatbot, it is a **brave companion**. Through a warm cartoon avatar, gamified achievement systems, and advanced AI technology, Little Snowball aims to alleviate fear and anxiety during treatment, provide professional popular science knowledge, and always pay attention to the child's emotional changes.
-
-> 🌟 **Mission**: Guarding every brave little angel with the warmth of AI.
-
 ## ✨ Key Features
 
-### 1. 🤖 Emotional AI Companionship
-- **Dynamic Avatar**: Snowball reacts with different expressions (happy, concerned, thinking) based on the context.
-- **Persona**: Built-in carefully designed System Prompts ensuring a gentle, resilient, and encouraging tone.
-- **User Profiling**: Automatically analyzes chat history to generate a user persona (Summary & Tags), remembering the child's preferences and status.
+### 1. 🔗 MCP Support (Model Context Protocol) **(New!)**
+- **Interoperability**: Runs as an MCP Server, allowing hardware like **XiaoZhi** to consult Snowball.
+- **Image Transport**: Automatically handles Dify image URLs, converting them to Base64 for MCP clients to display.
 
-### 2. 📞 Real-time Voice Call (Gemini Live)
-- **Immersive Calling**: Uses Google Gemini Live API for low-latency, real-time voice conversations.
-- **Interruptible**: Supports natural interruption of the AI's speech, simulating real human interaction.
-- **Multi-Voice**: Switch between "Cute/Pikachu", "Deep", or "Gentle" voice tones.
+## 🚀 Web App Quick Start
 
-### 3. 🎮 Gamification System
-- **Achievements**: Unlock badges through interactions (e.g., first question, asking for dietary advice).
-- **Bravery Stars**: Collect stars with every conversation to level up.
-- **Random Events**: Simulated scenarios (e.g., fever, homesickness) to guide children on how to cope.
+1. **Enter Project Directory**:
+   ```bash
+   cd little-snowball
+   ```
 
-### 4. 🔌 Multi-Model Support
-- **Google Gemini**: Official support, including Live Voice features.
-- **OpenAI Compatible**: Supports DeepSeek, SiliconFlow, Moonshot, etc.
-- **Dify**: Supports connecting to Dify Chatflow and Workflow apps.
+2. **Install Dependencies**:
+   ```bash
+   npm install
+   ```
 
-### 5. 📱 Multi-Platform Architecture
-- Built on the **Taro** framework, the codebase supports compilation to **WeChat Mini Programs** and H5 Web.
+3. **Start Dev Server**:
+   ```bash
+   npm run dev
+   ```
 
-## 🚀 Quick Start
+## 🚀 MCP Server Guide
 
-1.  **Clone the repo**: `git clone ...`
-2.  **Install dependencies**: `npm install`
-3.  **Run dev server**: `npm run dev`
-4.  **Configure AI**: Open Settings (⚙️), select **Gemini**, and paste your API Key.
+To allow external agents to consult Snowball:
+
+1. Create `.env` with your Dify credentials.
+2. Run `npm run mcp:start`.
+3. Configure your MCP Client to point to this script.
 
 ## 📄 License
 
