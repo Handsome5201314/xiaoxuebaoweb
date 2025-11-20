@@ -7,6 +7,7 @@ import { AchievementModal } from './components/AchievementModal';
 import { TutorialOverlay } from './components/TutorialOverlay';
 import { PersonalCenter } from './components/PersonalCenter';
 import { CallOverlay } from './components/CallOverlay';
+import { ImageLoader } from './components/ImageLoader';
 import { Send, Mic, Image as ImageIcon, Volume2, Info, Trophy, Sparkles, AlertCircle, Settings as SettingsIcon, Phone } from 'lucide-react';
 
 // --- Data Configuration ---
@@ -55,9 +56,12 @@ const DEFAULT_SETTINGS: AppSettings = {
   voiceTone: 'standard',
   geminiKey: process.env.API_KEY || '',
   geminiModel: 'gemini-2.5-flash',
+  geminiLiveModel: 'gemini-2.5-flash-native-audio-preview-09-2025', // Default Live Model
   openaiBaseUrl: 'https://api.deepseek.com/v1',
   openaiKey: '',
   openaiModel: 'deepseek-chat',
+  siliconFlowKey: '',
+  siliconFlowModel: 'deepseek-ai/DeepSeek-V3',
   difyBaseUrl: 'https://api.dify.ai/v1',
   difyKey: '',
   difyAppType: 'chat'
@@ -73,7 +77,7 @@ export default function App() {
   // Settings State
   const [appSettings, setAppSettings] = useState<AppSettings>(() => {
     const saved = localStorage.getItem('snowball_settings');
-    // Merge saved settings with defaults to ensure new fields (like voiceTone) exist
+    // Merge saved settings with defaults to ensure new fields (like voiceTone, geminiLiveModel) exist
     return saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS;
   });
 
@@ -293,17 +297,46 @@ export default function App() {
     try {
       const responseText = await sendMessageToSnowball(userText);
       
-      const imgRegex = /\[IMAGE_REQUEST:\s*(.*?)\]/;
-      const match = responseText.match(imgRegex);
-      
-      let finalText = responseText.replace(imgRegex, '').trim();
+      let finalText = responseText;
       let imageUrl = undefined;
 
-      if (match) {
-        const keyword = match[1];
+      // 1. Check for Mock Image Request Regex (Legacy/Demo)
+      const mockImgRegex = /\[IMAGE_REQUEST:\s*(.*?)\]/;
+      const mockMatch = finalText.match(mockImgRegex);
+      
+      if (mockMatch) {
+        const keyword = mockMatch[1];
         imageUrl = `https://picsum.photos/400/300?random=${Date.now()}`;
+        finalText = finalText.replace(mockImgRegex, '').trim();
         finalText += `\n(小雪宝为你找到了一张关于 "${keyword}" 的示意图)`;
         unlockAchievement('visual_learner');
+      } 
+      
+      // 2. Check for Markdown Images (Standard Dify/Gemini output)
+      // Finds: ![alt](url)
+      const markdownImgRegex = /!\[(.*?)\]\((.*?)\)/;
+      const markdownMatch = finalText.match(markdownImgRegex);
+
+      if (!imageUrl && markdownMatch) {
+        imageUrl = markdownMatch[2];
+        // Optional: Remove the image markup from text to avoid duplication if you only want the card
+        finalText = finalText.replace(markdownImgRegex, '').trim(); 
+        unlockAchievement('visual_learner');
+      }
+
+      // 3. Check for Raw URLs that look like images (if Dify sends just a URL)
+      // This is a fallback for when Dify doesn't use markdown syntax
+      if (!imageUrl) {
+        const urlRegex = /(https?:\/\/.*\.(?:png|jpg|jpeg|gif|webp|svg))/i;
+        const urlMatch = finalText.match(urlRegex);
+        if (urlMatch) {
+            imageUrl = urlMatch[1];
+            // Don't remove URL from text as it might be part of a sentence, unless it's the ONLY thing
+            if (finalText.trim() === imageUrl) {
+                finalText = "这是你要的图片：";
+            }
+            unlockAchievement('visual_learner');
+        }
       }
 
       const botMsg: Message = {
@@ -321,11 +354,11 @@ export default function App() {
           triggerRandomEvent();
       }, 3000);
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Msg Error", error);
         setMessages(prev => [...prev, {
           id: Date.now().toString(),
-          text: "连接似乎断开了... 检查一下个人中心的配置吧？",
+          text: `连接似乎断开了: ${error.message}`,
           sender: Sender.Bot,
           timestamp: Date.now(),
         }]);
@@ -478,8 +511,8 @@ export default function App() {
                 ))}
                 
                 {msg.imageUrl && (
-                  <div className="mt-3 rounded-lg overflow-hidden border border-gray-100 shadow-inner">
-                    <img src={msg.imageUrl} alt="Medical Illustration" className="w-full h-auto object-cover" />
+                  <div className="mt-3">
+                     <ImageLoader src={msg.imageUrl} alt="Generated Content" />
                   </div>
                 )}
 

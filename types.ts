@@ -60,7 +60,7 @@ export enum CallState {
 
 // --- New Types for Personal Center ---
 
-export type ModelProvider = 'gemini' | 'openai' | 'dify';
+export type ModelProvider = 'gemini' | 'openai' | 'dify' | 'siliconflow';
 
 // New Voice Tone Type
 export type VoiceTone = 'standard' | 'cute' | 'gentle' | 'deep';
@@ -78,12 +78,17 @@ export interface AppSettings {
   
   // Google Gemini
   geminiKey: string;
-  geminiModel: string;
+  geminiModel: string; // Text model
+  geminiLiveModel: string; // Audio/Live model
   
   // OpenAI Compatible (DeepSeek, SiliconFlow, etc.)
   openaiBaseUrl: string;
   openaiKey: string;
   openaiModel: string;
+
+  // SiliconFlow Specific
+  siliconFlowKey: string;
+  siliconFlowModel: string;
   
   // Dify
   difyBaseUrl: string;

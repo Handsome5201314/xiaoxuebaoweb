@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, User, Save, X, Cpu, Network, Key, Database, Activity, CheckCircle2, AlertCircle, MessageSquare, GitBranch, BookOpen, Volume2, Smile, Music, Zap, RefreshCw, Clock, Hash, Lightbulb } from 'lucide-react';
+import { Settings, User, Save, X, Cpu, Network, Key, Database, Activity, CheckCircle2, AlertCircle, MessageSquare, GitBranch, BookOpen, Volume2, Smile, Music, Zap, RefreshCw, Clock, Hash, Lightbulb, Server } from 'lucide-react';
 import { AppSettings, ModelProvider, VoiceTone, UserProfile, Message, Sender } from '../types';
 import { testConnection } from '../services/geminiService';
 
@@ -98,13 +98,20 @@ export const PersonalCenter: React.FC<PersonalCenterProps> = ({ isOpen, onClose,
               {/* Provider Selector */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">选择大模型供应商</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <button 
                     onClick={() => handleChange('provider', 'gemini')}
                     className={`p-2 rounded-xl border text-xs font-bold flex flex-col items-center justify-center space-y-1 transition-all ${formData.provider === 'gemini' ? 'bg-blue-50 border-blue-500 text-blue-600' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
                   >
                     <Cpu size={16} />
                     <span>Gemini</span>
+                  </button>
+                  <button 
+                    onClick={() => handleChange('provider', 'siliconflow')}
+                    className={`p-2 rounded-xl border text-xs font-bold flex flex-col items-center justify-center space-y-1 transition-all ${formData.provider === 'siliconflow' ? 'bg-orange-50 border-orange-500 text-orange-600' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                  >
+                    <Server size={16} />
+                    <span>硅基流动</span>
                   </button>
                   <button 
                     onClick={() => handleChange('provider', 'openai')}
@@ -143,7 +150,7 @@ export const PersonalCenter: React.FC<PersonalCenterProps> = ({ isOpen, onClose,
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs text-gray-500">Model Name</label>
+                    <label className="text-xs text-gray-500">Chat Model Name (文字)</label>
                     <input 
                       type="text" 
                       value={formData.geminiModel}
@@ -152,6 +159,50 @@ export const PersonalCenter: React.FC<PersonalCenterProps> = ({ isOpen, onClose,
                       placeholder="gemini-2.5-flash"
                     />
                   </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-500">Live Model Name (语音通话)</label>
+                    <input 
+                      type="text" 
+                      value={formData.geminiLiveModel || 'gemini-2.5-flash-native-audio-preview-09-2025'}
+                      onChange={(e) => handleChange('geminiLiveModel', e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none"
+                      placeholder="gemini-2.5-flash-native-audio-preview-09-2025"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1">如果遇到 503 错误，请尝试更换为 gemini-2.0-flash-exp</p>
+                  </div>
+                </div>
+              )}
+
+              {/* SiliconFlow Config */}
+              {formData.provider === 'siliconflow' && (
+                <div className="space-y-4 animate-fade-in">
+                   <div className="bg-orange-50 p-3 rounded-lg text-xs text-orange-600 mb-2">
+                    支持 DeepSeek R1/V3, Qwen2.5 等高性能模型 (Base URL 已内置)。
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-500">API Key</label>
+                    <div className="relative">
+                      <Key className="absolute left-3 top-2.5 text-gray-400" size={14} />
+                      <input 
+                        type="password" 
+                        value={formData.siliconFlowKey}
+                        onChange={(e) => handleChange('siliconFlowKey', e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none"
+                        placeholder="sk-..."
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-500">Model Name</label>
+                    <input 
+                      type="text" 
+                      value={formData.siliconFlowModel}
+                      onChange={(e) => handleChange('siliconFlowModel', e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none"
+                      placeholder="deepseek-ai/DeepSeek-V3"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1">常用: deepseek-ai/DeepSeek-V3, deepseek-ai/DeepSeek-R1</p>
+                  </div>
                 </div>
               )}
 
@@ -159,7 +210,7 @@ export const PersonalCenter: React.FC<PersonalCenterProps> = ({ isOpen, onClose,
               {formData.provider === 'openai' && (
                 <div className="space-y-4 animate-fade-in">
                   <div className="bg-green-50 p-3 rounded-lg text-xs text-green-600 mb-2">
-                    支持 DeepSeek, SiliconFlow, Moonshot 等兼容 OpenAI 格式的接口。
+                    支持其他兼容 OpenAI 格式的接口服务。
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs text-gray-500">Base URL</label>
@@ -251,7 +302,7 @@ export const PersonalCenter: React.FC<PersonalCenterProps> = ({ isOpen, onClose,
                 </div>
               )}
 
-              {/* System Instruction & Voice Tone - Only for Gemini/OpenAI */}
+              {/* System Instruction & Voice Tone - Only for Gemini/OpenAI/SiliconFlow */}
               {formData.provider !== 'dify' && (
                  <div className="space-y-4 pt-2 border-t border-dashed border-gray-200">
                     

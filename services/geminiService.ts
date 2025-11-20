@@ -90,26 +90,71 @@ function createBlob(data: Float32Array): Blob {
 
 // --- Helper to safely parse error response ---
 const parseErrorResponse = async (response: Response) => {
-  const text = await response.text();
   try {
-    const json = JSON.parse(text);
-    return { json, text };
-  } catch {
-    return { json: {}, text };
+    const text = await response.text();
+    try {
+      const json = JSON.parse(text);
+      return { json, text };
+    } catch {
+      return { json: {}, text };
+    }
+  } catch (e) {
+    return { json: {}, text: response.statusText || "Unknown Network Error" };
   }
 };
 
-// Helper to extract a readable error message from various JSON formats
-const getErrorMessage = (json: any, text: string): string => {
-  if (json && typeof json === 'object') {
-    if (typeof json.message === 'string') return json.message;
-    if (typeof json.msg === 'string') return json.msg;
-    if (typeof json.error === 'string') return json.error;
-    if (json.error && typeof json.error.message === 'string') return json.error.message;
-    // If message exists but is an object/array, stringify it
-    if (json.message) return JSON.stringify(json.message);
+// Helper to safely stringify objects avoiding [object Object]
+const safeStringify = (val: any): string => {
+  if (typeof val === 'string') return val;
+  try {
+    if (val === '[object Object]') return '';
+    return JSON.stringify(val);
+  } catch {
+    return String(val);
   }
-  return text || 'Unknown Error';
+};
+
+// Robust error message extractor
+const getErrorMessage = (json: any, text: string): string => {
+  try {
+    if (json && typeof json === 'object' && !Array.isArray(json)) {
+      // 1. Check for explicit 'message' string
+      if (typeof json.message === 'string') return json.message;
+      // 2. Check for 'message' object (stringify it)
+      if (json.message && typeof json.message === 'object') return safeStringify(json.message);
+      
+      // 3. Check for 'msg'
+      if (typeof json.msg === 'string') return json.msg;
+      
+      // 4. Check for 'error' string or object
+      if (json.error) {
+          if (typeof json.error === 'string') return json.error;
+          if (typeof json.error.message === 'string') return json.error.message;
+          return safeStringify(json.error);
+      }
+      
+      // 5. Check for 'code' + 'message' pattern (Dify common)
+      if (json.code && json.message) {
+          return `${json.code}: ${typeof json.message === 'string' ? json.message : safeStringify(json.message)}`;
+      }
+
+      // 6. Fallback: if json has content, stringify the whole thing
+      if (Object.keys(json).length > 0) {
+          return safeStringify(json);
+      }
+    }
+  } catch (e) {
+    console.error("Error parsing error message object", e);
+  }
+  
+  // Fallback to text body
+  if (typeof text === 'string' && text.trim().length > 0) {
+      // Prevent returning "[object Object]" literally
+      if (text === '[object Object]') return 'Unknown Error (Invalid Response Format)';
+      return text;
+  }
+  
+  return 'Unknown Error';
 };
 
 // Initialize the service with settings
@@ -153,6 +198,11 @@ export const startLiveCall = async (onStatusChange: (state: CallState) => void) 
     // 1. Setup Audio Contexts
     inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
     outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+    
+    // Resume audio contexts to prevent browser auto-play blocks
+    await inputAudioContext.resume();
+    await outputAudioContext.resume();
+    
     nextPlayTime = 0;
     activeAudioSources.clear();
 
@@ -169,11 +219,12 @@ export const startLiveCall = async (onStatusChange: (state: CallState) => void) 
     else if (tone === 'deep') voiceName = 'Fenrir';
     else if (tone === 'gentle') voiceName = 'Zephyr';
 
-    console.log(`Starting Live Call with voice: ${voiceName} (${tone})`);
+    const liveModel = currentSettings.geminiLiveModel || 'gemini-2.5-flash-native-audio-preview-09-2025';
+    console.log(`Starting Live Call with voice: ${voiceName} (${tone}) using model: ${liveModel}`);
 
     // 4. Connect to Gemini Live API
     const connectPromise = geminiInstance.live.connect({
-      model: 'gemini-2.5-flash-native-audio-preview-09-2025', 
+      model: liveModel, 
       config: {
         responseModalities: [Modality.AUDIO],
         speechConfig: {
@@ -253,6 +304,11 @@ export const startLiveCall = async (onStatusChange: (state: CallState) => void) 
         },
         onerror: (err: any) => {
           console.error("Gemini Live Error", err);
+          // Try to check if it is a 503 or unavailable error and notify user
+          const errorMsg = err.message || JSON.stringify(err);
+          if (errorMsg.includes("503") || errorMsg.includes("unavailable")) {
+             console.warn("The selected Live model might be overloaded or unavailable.");
+          }
           onStatusChange(CallState.Error);
         }
       }
@@ -264,6 +320,7 @@ export const startLiveCall = async (onStatusChange: (state: CallState) => void) 
     console.error("Failed to start live call", error);
     onStatusChange(CallState.Error);
     endLiveCall();
+    throw error; // Re-throw so UI can show specific error message if possible
   }
 };
 
@@ -314,6 +371,28 @@ export const endLiveCall = () => {
   }
 };
 
+// --- Helper to Recursively Extract Images from Dify Outputs ---
+const extractImagesFromOutputs = (obj: any, foundImages: {url: string, name?: string}[]) => {
+  if (!obj) return;
+
+  // Case 1: Direct Dify File Object
+  if (typeof obj === 'object' && obj.type === 'image' && obj.url) {
+    foundImages.push({ url: obj.url, name: obj.name || 'image' });
+    return;
+  }
+  
+  // Case 2: Array of files (common in tools like Janus)
+  if (Array.isArray(obj)) {
+    obj.forEach(item => extractImagesFromOutputs(item, foundImages));
+    return;
+  }
+
+  // Case 3: Nested Objects
+  if (typeof obj === 'object') {
+    Object.values(obj).forEach(val => extractImagesFromOutputs(val, foundImages));
+  }
+};
+
 // --- Existing Chat Functions ---
 
 // Generate User Profile (Persona) from History
@@ -351,6 +430,20 @@ export const generateUserProfile = async (history: {text: string, sender: string
        });
        resultText = response.text || "";
     }
+    // If SiliconFlow
+    else if (providerSettings.provider === 'siliconflow' && providerSettings.siliconFlowKey) {
+       const response = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${providerSettings.siliconFlowKey}` },
+        body: JSON.stringify({
+          model: providerSettings.siliconFlowModel || 'deepseek-ai/DeepSeek-V3',
+          messages: [{ role: 'user', content: prompt }],
+          response_format: { type: "json_object" }
+        })
+      });
+      const data = await response.json();
+      resultText = data.choices[0].message.content;
+    }
     // If OpenAI
     else if (providerSettings.provider === 'openai' && providerSettings.openaiKey) {
        const response = await fetch(`${providerSettings.openaiBaseUrl.replace(/\/$/, '')}/chat/completions`, {
@@ -372,7 +465,12 @@ export const generateUserProfile = async (history: {text: string, sender: string
     // Clean up markdown if present (Gemini sometimes adds it even with mimeType set)
     resultText = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
     
-    return JSON.parse(resultText);
+    try {
+        return JSON.parse(resultText);
+    } catch (e) {
+        console.warn("Failed to parse profile JSON, raw text:", resultText);
+        return null;
+    }
 
   } catch (e) {
     console.error("Failed to generate profile", e);
@@ -386,12 +484,34 @@ export const testConnection = async (settings: AppSettings): Promise<{ success: 
     if (settings.provider === 'gemini') {
       if (!settings.geminiKey) return { success: false, message: '缺少 API Key' };
       const genAI = new GoogleGenAI({ apiKey: settings.geminiKey });
-      // Use models.generateContent for a quick stateless test
       await genAI.models.generateContent({
           model: settings.geminiModel || 'gemini-2.5-flash',
           contents: 'Hello',
       });
       return { success: true, message: 'Gemini 连接成功！' };
+    }
+
+    if (settings.provider === 'siliconflow') {
+      if (!settings.siliconFlowKey) return { success: false, message: '缺少配置信息' };
+      const response = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${settings.siliconFlowKey}`
+        },
+        body: JSON.stringify({
+          model: settings.siliconFlowModel || 'deepseek-ai/DeepSeek-V3',
+          messages: [{ role: 'user', content: 'ping' }],
+          max_tokens: 5
+        })
+      });
+
+      if (!response.ok) {
+          const { json, text } = await parseErrorResponse(response);
+          const msg = getErrorMessage(json, text);
+          throw new Error(`${response.status} ${msg}`);
+      }
+      return { success: true, message: '硅基流动 (SiliconFlow) 连接成功！' };
     }
 
     if (settings.provider === 'openai') {
@@ -426,7 +546,7 @@ export const testConnection = async (settings: AppSettings): Promise<{ success: 
       
       const body = isWorkflow 
         ? {
-            inputs: { query: "ping" }, // Assuming 'query' is a valid input
+            inputs: { query: "ping", text: "ping" }, // Assuming 'query' is a valid input
             response_mode: "blocking",
             user: "test-user"
           }
@@ -472,7 +592,8 @@ export const testConnection = async (settings: AppSettings): Promise<{ success: 
     return { success: false, message: '未知供应商' };
   } catch (e: any) {
     console.error("Test Connection Error", e);
-    return { success: false, message: `连接失败: ${e.message || 'Unknown Error'}` };
+    const safeMsg = typeof e.message === 'string' ? e.message : safeStringify(e.message || e);
+    return { success: false, message: `连接失败: ${safeMsg}` };
   }
 };
 
@@ -495,7 +616,39 @@ export const sendMessageToSnowball = async (message: string): Promise<string> =>
       return response.text || "小雪宝正在思考...";
     }
 
-    // --- 2. OpenAI Compatible Provider (DeepSeek, SiliconFlow, etc.) ---
+    // --- 2. SiliconFlow Provider ---
+    if (currentSettings.provider === 'siliconflow') {
+      if (!currentSettings.siliconFlowKey) {
+        return "请先在个人中心配置硅基流动 (SiliconFlow) API 信息。";
+      }
+
+      const response = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentSettings.siliconFlowKey}`
+        },
+        body: JSON.stringify({
+          model: currentSettings.siliconFlowModel || 'deepseek-ai/DeepSeek-V3',
+          messages: [
+            { role: 'system', content: currentSettings.systemInstruction || DEFAULT_SYSTEM_INSTRUCTION },
+            { role: 'user', content: message }
+          ],
+          temperature: 0.7
+        })
+      });
+
+      if (!response.ok) {
+        const { json, text } = await parseErrorResponse(response);
+        const msg = getErrorMessage(json, text);
+        throw new Error(`SiliconFlow API Error: ${response.status} ${msg}`);
+      }
+
+      const data = await response.json();
+      return data.choices?.[0]?.message?.content || "收到空回复";
+    }
+
+    // --- 3. OpenAI Compatible Provider (DeepSeek, etc.) ---
     if (currentSettings.provider === 'openai') {
       if (!currentSettings.openaiBaseUrl || !currentSettings.openaiKey) {
         return "请先在个人中心配置 OpenAI/DeepSeek API 信息。";
@@ -527,7 +680,7 @@ export const sendMessageToSnowball = async (message: string): Promise<string> =>
       return data.choices?.[0]?.message?.content || "收到空回复";
     }
 
-    // --- 3. Dify Provider ---
+    // --- 4. Dify Provider ---
     if (currentSettings.provider === 'dify') {
       if (!currentSettings.difyBaseUrl || !currentSettings.difyKey) {
         return "请先在个人中心配置 Dify API 信息。";
@@ -539,7 +692,13 @@ export const sendMessageToSnowball = async (message: string): Promise<string> =>
 
       const body = isWorkflow 
       ? {
-          inputs: { query: message, text: message }, // Send message as 'query' AND 'text' to cover common variable names
+          // Ensure inputs contains common parameter names to match potential Start Node variables
+          inputs: { 
+            query: message, 
+            text: message,
+            input: message,
+            question: message
+          },
           response_mode: "blocking",
           user: "snowball-user-" + (currentSettings.difyConversationId || "default")
         }
@@ -569,7 +728,22 @@ export const sendMessageToSnowball = async (message: string): Promise<string> =>
         }
 
         if (errData.code === 'not_workflow_app') {
-             return `配置错误：您的 Dify 应用不支持 Workflow API。请在个人中心将 Dify 模式切换为 [聊天助手 (Chat)]。`;
+             return `配置错误：您的 Dify 应用不支持 Workflow API。请在个人中心将 Dify 模式切换为 [聊天助手 (Chat)] 模式。`;
+        }
+        
+        // Auto-recovery for "Conversation Not Exists" (Chatflow only)
+        if (!isWorkflow && (
+            errData.code === 'conversation_not_exists' || 
+            (typeof errData.message === 'string' && errData.message.includes('Conversation Not Exists')) ||
+             response.status === 404
+        )) {
+             console.log("Dify conversation stale, resetting...");
+             currentSettings.difyConversationId = ""; // Clear stale ID
+             // Retry recursively once if we haven't retried yet
+             if (!message.includes("[INTERNAL_RETRY]")) {
+                 await new Promise(resolve => setTimeout(resolve, 200));
+                 return sendMessageToSnowball(message); // Retry
+             }
         }
 
         const msg = getErrorMessage(errData, errText);
@@ -578,49 +752,84 @@ export const sendMessageToSnowball = async (message: string): Promise<string> =>
 
       const data = await response.json();
       
+      let outputText = "";
+      let outputFiles: {url: string, name?: string}[] = [];
+
       if (isWorkflow) {
         // Workflow response format: data.data.outputs
         const outputs = data.data?.outputs || {};
         
-        // Intelligent extraction of the main text response from workflow outputs
-        let outputText = outputs.text || outputs.answer || outputs.result || outputs.content || outputs.response;
+        // 1. Try to find main text response
+        outputText = outputs.text || outputs.answer || outputs.result || outputs.content || outputs.response;
         
-        // If no specific key matches, but there is exactly one output, use it
+        // If no specific key matches, but there is exactly one string output, use it
         if (!outputText && typeof outputs === 'object') {
             const keys = Object.keys(outputs);
-            if (keys.length === 1) {
+            if (keys.length === 1 && typeof outputs[keys[0]] === 'string') {
                 outputText = outputs[keys[0]];
             }
         }
 
-        // Fallback: JSON stringify if nothing else matches, but avoid empty "{}"
+        // 2. Recursively find all files/images in outputs
+        extractImagesFromOutputs(outputs, outputFiles);
+
+        // Fallback: JSON stringify if no text found and we have meaningful data
         if (!outputText) {
             if (Object.keys(outputs).length === 0) {
                  outputText = "Workflow 执行成功，但未返回任何 Output 变量。";
+            } else if (outputFiles.length === 0) { // Only stringify if we haven't found images to show
+                 // Filter out files from stringify to avoid clutter
+                 const safeOutputs = { ...outputs };
+                 // Simple attempt to reduce huge JSON dump
+                 outputText = ""; 
             } else {
-                 outputText = JSON.stringify(outputs, null, 2);
+                 outputText = ""; // We have images, so empty text is fine (images will be appended)
             }
         }
-        
-        // Ensure result is string
-        if (typeof outputText !== 'string') {
-            outputText = JSON.stringify(outputText);
-        }
-
-        return outputText;
       } else {
         // Chatflow response format: data.answer
         if (data.conversation_id) {
             currentSettings.difyConversationId = data.conversation_id;
         }
-        return data.answer || "Dify 没有返回内容";
+        outputText = data.answer || "";
+        
+        // Check for files in Chatflow response
+        if (data.files && Array.isArray(data.files)) {
+            data.files.forEach((f: any) => {
+                if (f.type === 'image' && f.url) {
+                    outputFiles.push({ url: f.url, name: f.name });
+                }
+            });
+        }
       }
+
+      // Ensure result is string
+      if (typeof outputText !== 'string') {
+          outputText = safeStringify(outputText);
+      }
+
+      // Append images as Markdown so frontend regex can pick them up
+      // deduplicate based on URL
+      const uniqueImages = Array.from(new Map(outputFiles.map(item => [item.url, item])).values());
+      
+      if (uniqueImages.length > 0) {
+          const imageMarkdown = uniqueImages.map(f => {
+             // Don't append if already in text (Dify might have templated it)
+             if (outputText.includes(f.url)) return '';
+             return `\n![${f.name || 'image'}](${f.url})`;
+          }).join('');
+          outputText += imageMarkdown;
+      }
+
+      return outputText || "Dify 没有返回内容";
     }
 
     return "配置错误：未知的模型供应商。";
 
   } catch (error: any) {
     console.error("Error sending message:", error);
-    return `(网络连接错误: ${error.message})`;
+    const errorMsg = safeStringify(error.message || error);
+    // Defensive check to ensure we never throw an object
+    throw new Error(`(网络连接错误: ${errorMsg})`);
   }
 };
